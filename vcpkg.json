@@ -1,0 +1,24 @@
+{
+  "name": "voxel-editor",
+  "version-string": "0.1.0",
+  "builtin-baseline": "44819aa2a6c10e56065e2b0330e7d6c89d1d2574",
+  "dependencies": [
+    "vulkan-headers",
+    "vulkan-loader",
+    "vulkan-validationlayers",
+    "vk-bootstrap",
+    "glfw3",
+    "glm",
+    {
+      "name": "imgui",
+      "features": [
+        "docking-experimental",
+        "vulkan-binding",
+        "glfw-binding"
+      ]
+    },
+    "stb",
+    "spdlog",
+    "fmt"
+  ]
+}
