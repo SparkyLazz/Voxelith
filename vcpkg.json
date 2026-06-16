@@ -19,6 +19,11 @@
     },
     "stb",
     "spdlog",
-    "fmt"
+    "fmt",
+    "vulkan-memory-allocator",
+    {
+      "name": "glslang",
+      "features": ["tools", "opt"]
+    }
   ]
 }

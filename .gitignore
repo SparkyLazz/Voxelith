@@ -31,6 +31,9 @@ CMakeUserPresets.json
 *.exp
 *.lib
 
+# ImGui layout persistence
+imgui.ini
+
 # Misc
 *.DS_Store
 Thumbs.db
