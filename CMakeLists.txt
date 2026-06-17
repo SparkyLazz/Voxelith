@@ -93,6 +93,9 @@ add_custom_target(Shaders ALL DEPENDS ${SHADER_SPV_FILES})
 # ---- Voxel data library ----
 add_subdirectory(src/voxel)
 
+# ---- Editor logic library ----
+add_subdirectory(src/editor)
+
 # ---- Executable ----
 add_executable(VoxelEditor
     src/main.cpp
@@ -118,7 +121,10 @@ target_compile_definitions(VoxelEditor PRIVATE
     GLM_FORCE_RADIANS
     GLM_FORCE_DEPTH_ZERO_TO_ONE
     SHADER_DIR="${SHADER_OUTPUT_DIR}"
+    TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/test_data"
     VXM_ROUNDTRIP_TEST
+    VOX_IMPORT_TEST
+    EDITOR_STATE_TEST
 )
 
 target_link_libraries(VoxelEditor PRIVATE
@@ -131,4 +137,5 @@ target_link_libraries(VoxelEditor PRIVATE
     glm::glm
     imgui::imgui
     voxel
+    editor
 )

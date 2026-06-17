@@ -79,6 +79,18 @@ void Renderer::notifyResize() {
     m_impl->resizeRequested = true;
 }
 
+void Renderer::set_mesh(const std::vector<RendererVertex>& vertices,
+                         const std::vector<uint32_t>&        indices) {
+    auto& s = *m_impl;
+    s.context->waitIdle();
+    s.mesh->upload(
+        vertices.data(),
+        static_cast<VkDeviceSize>(vertices.size() * sizeof(RendererVertex)),
+        indices.data(),
+        static_cast<uint32_t>(indices.size())
+    );
+}
+
 // ---------------------------------------------------------------------------
 // beginImGuiFrame
 // ---------------------------------------------------------------------------
@@ -138,7 +150,7 @@ void Renderer::drawFrame(const ViewMatrix& viewIn) {
     const glm::mat4 view    = glm::make_mat4(viewIn.m);
     const VkExtent2D ext    = s.swapchain->extent();
     const float      aspect = static_cast<float>(ext.width) / static_cast<float>(ext.height);
-    glm::mat4 proj = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100.0f);
+    glm::mat4 proj = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 5000.0f);
     proj[1][1] *= -1.0f;  // flip Y for Vulkan NDC
     const glm::mat4 mvp = proj * view * model;
 
@@ -228,12 +240,13 @@ void Renderer::drawFrame(const ViewMatrix& viewIn) {
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s.pipeline->pipeline());
 
-    const VkDeviceSize offset = 0;
-    const VkBuffer     vbuf  = s.mesh->vertexBuffer();
-    vkCmdBindVertexBuffers(cmd, 0, 1, &vbuf, &offset);
-    vkCmdBindIndexBuffer(cmd, s.mesh->indexBuffer(), 0, VK_INDEX_TYPE_UINT16);
-
-    vkCmdDrawIndexed(cmd, s.mesh->indexCount(), 1, 0, 0, 0);
+    if (s.mesh->indexCount() > 0) {
+        const VkDeviceSize offset = 0;
+        const VkBuffer     vbuf  = s.mesh->vertexBuffer();
+        vkCmdBindVertexBuffers(cmd, 0, 1, &vbuf, &offset);
+        vkCmdBindIndexBuffer(cmd, s.mesh->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cmd, s.mesh->indexCount(), 1, 0, 0, 0);
+    }
 
     s.imgui->recordDraw(cmd);
 

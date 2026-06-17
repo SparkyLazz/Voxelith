@@ -4,29 +4,40 @@
 
 #include <cstring>
 #include <stdexcept>
-#include <vector>
 
 VkMesh::VkMesh(VmaAllocator allocator, VkDevice device)
     : m_allocator(allocator)
     , m_device(device) {
+    // Starts with no mesh — call upload() to provide geometry.
+}
 
-    // Vertex buffer — 8 unique-colored cube corners
-    const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},  // 0 red
-        {{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},  // 1 green
-        {{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}},  // 2 blue
-        {{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f, 0.0f}},  // 3 yellow
-        {{-0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 1.0f}},  // 4 magenta
-        {{ 0.5f, -0.5f,  0.5f}, {0.0f, 1.0f, 1.0f}},  // 5 cyan
-        {{ 0.5f,  0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}},  // 6 white
-        {{-0.5f,  0.5f,  0.5f}, {0.5f, 0.5f, 0.5f}},  // 7 gray
-    };
+VkMesh::~VkMesh() {
+    if (m_allocator == VK_NULL_HANDLE) return;
+    if (m_indexBuffer  != VK_NULL_HANDLE)
+        vmaDestroyBuffer(m_allocator, m_indexBuffer, m_indexAlloc);
+    if (m_vertexBuffer != VK_NULL_HANDLE)
+        vmaDestroyBuffer(m_allocator, m_vertexBuffer, m_vertexAlloc);
+}
 
-    const VkDeviceSize vbSize = sizeof(Vertex) * vertices.size();
+void VkMesh::upload(const void*     vdata, VkDeviceSize vbytes,
+                    const uint32_t* idata, uint32_t     icount) {
+    // Destroy existing buffers.
+    if (m_indexBuffer != VK_NULL_HANDLE) {
+        vmaDestroyBuffer(m_allocator, m_indexBuffer, m_indexAlloc);
+        m_indexBuffer = VK_NULL_HANDLE;
+    }
+    if (m_vertexBuffer != VK_NULL_HANDLE) {
+        vmaDestroyBuffer(m_allocator, m_vertexBuffer, m_vertexAlloc);
+        m_vertexBuffer = VK_NULL_HANDLE;
+    }
+    m_indexCount = 0;
 
+    if (vbytes == 0 || icount == 0) { return; }
+
+    // Vertex buffer
     VkBufferCreateInfo vbInfo{};
     vbInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    vbInfo.size  = vbSize;
+    vbInfo.size  = vbytes;
     vbInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
     VmaAllocationCreateInfo vbAllocInfo{};
@@ -39,25 +50,13 @@ VkMesh::VkMesh(VmaAllocator allocator, VkDevice device)
                         &m_vertexBuffer, &m_vertexAlloc, &vbAllocOut) != VK_SUCCESS) {
         throw std::runtime_error("vmaCreateBuffer failed for vertex buffer");
     }
-    std::memcpy(vbAllocOut.pMappedData, vertices.data(), static_cast<size_t>(vbSize));
-    spdlog::debug("Vertex buffer created ({} bytes)", vbSize);
+    std::memcpy(vbAllocOut.pMappedData, vdata, static_cast<size_t>(vbytes));
 
-    // Index buffer — 12 triangles (36 indices), CCW winding
-    const std::vector<uint16_t> indices = {
-        0, 2, 1,  0, 3, 2,   // -Z face
-        4, 5, 6,  4, 6, 7,   // +Z face
-        0, 4, 7,  0, 7, 3,   // -X face
-        1, 2, 6,  1, 6, 5,   // +X face
-        0, 1, 5,  0, 5, 4,   // -Y face (bottom)
-        3, 7, 6,  3, 6, 2,   // +Y face (top)
-    };
-    m_indexCount = static_cast<uint32_t>(indices.size());
-
-    const VkDeviceSize ibSize = sizeof(uint16_t) * indices.size();
-
+    // Index buffer (uint32_t indices)
+    const VkDeviceSize ibBytes = static_cast<VkDeviceSize>(icount) * sizeof(uint32_t);
     VkBufferCreateInfo ibInfo{};
     ibInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    ibInfo.size  = ibSize;
+    ibInfo.size  = ibBytes;
     ibInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
     VmaAllocationCreateInfo ibAllocInfo{};
@@ -68,18 +67,12 @@ VkMesh::VkMesh(VmaAllocator allocator, VkDevice device)
     VmaAllocationInfo ibAllocOut{};
     if (vmaCreateBuffer(m_allocator, &ibInfo, &ibAllocInfo,
                         &m_indexBuffer, &m_indexAlloc, &ibAllocOut) != VK_SUCCESS) {
+        vmaDestroyBuffer(m_allocator, m_vertexBuffer, m_vertexAlloc);
+        m_vertexBuffer = VK_NULL_HANDLE;
         throw std::runtime_error("vmaCreateBuffer failed for index buffer");
     }
-    std::memcpy(ibAllocOut.pMappedData, indices.data(), static_cast<size_t>(ibSize));
-    spdlog::debug("Index buffer created ({} indices, {} bytes)", m_indexCount, ibSize);
-}
+    std::memcpy(ibAllocOut.pMappedData, idata, static_cast<size_t>(ibBytes));
+    m_indexCount = icount;
 
-VkMesh::~VkMesh() {
-    if (m_allocator == VK_NULL_HANDLE) return;
-
-    if (m_indexBuffer != VK_NULL_HANDLE)
-        vmaDestroyBuffer(m_allocator, m_indexBuffer, m_indexAlloc);
-
-    if (m_vertexBuffer != VK_NULL_HANDLE)
-        vmaDestroyBuffer(m_allocator, m_vertexBuffer, m_vertexAlloc);
+    spdlog::debug("[vk_mesh] upload vbytes={} icount={}", vbytes, icount);
 }

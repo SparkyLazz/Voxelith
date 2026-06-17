@@ -23,6 +23,12 @@ public:
     VkMesh(const VkMesh&)            = delete;
     VkMesh& operator=(const VkMesh&) = delete;
 
+    // Upload new vertex + index data, replacing any previously uploaded mesh.
+    // Destroys existing buffers first. Empty arrays clear the mesh (no draw).
+    // Caller must ensure the GPU is idle before calling (e.g. vkDeviceWaitIdle).
+    void upload(const void*     vdata, VkDeviceSize vbytes,
+                const uint32_t* idata, uint32_t     icount);
+
     VkBuffer vertexBuffer() const { return m_vertexBuffer; }
     VkBuffer indexBuffer()  const { return m_indexBuffer; }
     uint32_t indexCount()   const { return m_indexCount; }

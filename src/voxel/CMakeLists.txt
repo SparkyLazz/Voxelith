@@ -1,6 +1,8 @@
 add_library(voxel STATIC
     voxel_types.cpp
     vxm_io.cpp
+    vox_import.cpp
+    naive_mesher.cpp
 )
 
 # Expose src/ so consumers write: #include "voxel/model.h"
