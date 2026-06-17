@@ -118,7 +118,7 @@ target_compile_definitions(VoxelEditor PRIVATE
     GLM_FORCE_RADIANS
     GLM_FORCE_DEPTH_ZERO_TO_ONE
     SHADER_DIR="${SHADER_OUTPUT_DIR}"
-    VOXEL_SMOKE_TEST
+    VXM_ROUNDTRIP_TEST
 )
 
 target_link_libraries(VoxelEditor PRIVATE

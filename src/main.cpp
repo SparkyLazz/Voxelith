@@ -11,7 +11,11 @@
 #include "camera.h"
 #include "input.h"
 #include "renderer.h"
-#include "voxel/model.h"
+
+#ifdef VXM_ROUNDTRIP_TEST
+#include "voxel/vxm_io.h"
+#include <filesystem>
+#endif
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -39,19 +43,79 @@ int main() {
     spdlog::set_pattern("[%H:%M:%S.%e] [%^%l%$] %v");
     spdlog::set_level(spdlog::level::debug);
 
-#ifdef VOXEL_SMOKE_TEST
+#ifdef VXM_ROUNDTRIP_TEST
     {
         vox::Model m;
-        m.name = "smoke_test";
-        m.palette.materials[1].albedo = {0.8f, 0.2f, 0.2f};
-        vox::Chunk chunk;
-        chunk.set(5, 5, 5, 1);
-        m.chunks[glm::ivec3{0, 0, 0}] = chunk;
+        m.name          = "rt_test";
+        m.palette.name  = "rt_palette";
+
+        // material[1]: red, emissive, roughness 0.3
+        m.palette.materials[1].albedo            = {0.8f, 0.2f, 0.2f};
+        m.palette.materials[1].emission          = {1.0f, 0.1f, 0.1f};
+        m.palette.materials[1].emission_strength = 1.0f;
+        m.palette.materials[1].roughness         = 0.3f;
+
+        // material[7]: blue glass
+        m.palette.materials[7].albedo       = {0.1f, 0.2f, 0.9f};
+        m.palette.materials[7].transparency = 0.6f;
+        m.palette.materials[7].ior          = 1.5f;
+        m.palette.materials[7].flags        = static_cast<uint32_t>(vox::MaterialFlag::Glass);
+
+        {
+            vox::Chunk c;
+            c.position = glm::ivec3{0, 0, 0};
+            c.set(5,  5,  5,  1);
+            c.set(10, 10, 10, 7);
+            m.chunks[c.position] = c;
+        }
+        {
+            vox::Chunk c;
+            c.position = glm::ivec3{1, 0, 0};
+            c.set(2,  3,  4,  1);
+            c.set(31, 31, 31, 7);
+            m.chunks[c.position] = c;
+        }
+        {
+            vox::Chunk c;
+            c.position = glm::ivec3{-1, 2, 3};
+            c.set(0, 0, 0, 7);
+            m.chunks[c.position] = c;
+        }
+
         m.recompute_bounds();
-        spdlog::info("[smoke] name={} id={} chunks={} voxels={} bounds=[{},{},{}]-[{},{},{}]",
-                     m.name, m.id.to_string(), m.chunk_count(), m.non_empty_voxel_count(),
-                     m.bounds_min.x, m.bounds_min.y, m.bounds_min.z,
-                     m.bounds_max.x, m.bounds_max.y, m.bounds_max.z);
+
+        const auto rtPath = std::filesystem::temp_directory_path() / "vxm_roundtrip.vxm";
+        vox::VxmError err  = vox::VxmError::Ok;
+
+        if (!vox::write_vxm(m, rtPath, &err)) {
+            spdlog::error("[vxm_roundtrip] write failed: {}", vox::to_string(err));
+        } else {
+            auto m2 = vox::read_vxm(rtPath, &err);
+            if (!m2) {
+                spdlog::error("[vxm_roundtrip] read failed: {}", vox::to_string(err));
+            } else if (m == *m2) {
+                std::error_code ec;
+                const auto fsize = std::filesystem::file_size(rtPath, ec);
+                spdlog::info("[vxm_roundtrip] OK — file={} bytes, chunks={}, voxels={}",
+                             fsize, m.chunk_count(), m.non_empty_voxel_count());
+            } else {
+                if (m.name != m2->name)
+                    spdlog::error("[vxm_roundtrip] MISMATCH name: '{}' vs '{}'", m.name, m2->name);
+                if (m.palette.name != m2->palette.name)
+                    spdlog::error("[vxm_roundtrip] MISMATCH palette.name: '{}' vs '{}'", m.palette.name, m2->palette.name);
+                if (m.id != m2->id)
+                    spdlog::error("[vxm_roundtrip] MISMATCH id: {} vs {}", m.id.to_string(), m2->id.to_string());
+                if (m.chunks.size() != m2->chunks.size())
+                    spdlog::error("[vxm_roundtrip] MISMATCH chunk_count: {} vs {}", m.chunks.size(), m2->chunks.size());
+                if (m.bounds_min != m2->bounds_min || m.bounds_max != m2->bounds_max)
+                    spdlog::error("[vxm_roundtrip] MISMATCH bounds: [{},{},{}]-[{},{},{}] vs [{},{},{}]-[{},{},{}]",
+                                  m.bounds_min.x,  m.bounds_min.y,  m.bounds_min.z,
+                                  m.bounds_max.x,  m.bounds_max.y,  m.bounds_max.z,
+                                  m2->bounds_min.x, m2->bounds_min.y, m2->bounds_min.z,
+                                  m2->bounds_max.x, m2->bounds_max.y, m2->bounds_max.z);
+                spdlog::error("[vxm_roundtrip] FAILED");
+            }
+        }
     }
 #endif
 
