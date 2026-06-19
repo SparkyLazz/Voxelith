@@ -23,6 +23,7 @@ public:
     VkImGui& operator=(const VkImGui&) = delete;
 
     void beginFrame(float camX, float camY, float camZ);
+    void endFrame();
     void recordDraw(VkCommandBuffer cmd);
     void onSwapchainRecreate(uint32_t newImageCount);
 

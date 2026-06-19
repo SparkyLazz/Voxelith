@@ -121,10 +121,6 @@ target_compile_definitions(VoxelEditor PRIVATE
     GLM_FORCE_RADIANS
     GLM_FORCE_DEPTH_ZERO_TO_ONE
     SHADER_DIR="${SHADER_OUTPUT_DIR}"
-    TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/test_data"
-    VXM_ROUNDTRIP_TEST
-    VOX_IMPORT_TEST
-    EDITOR_STATE_TEST
 )
 
 target_link_libraries(VoxelEditor PRIVATE

@@ -106,10 +106,13 @@ void Renderer::beginImGuiFrame(Vec3 cameraPos) {
 void Renderer::drawFrame(const ViewMatrix& viewIn) {
     auto& s = *m_impl;
 
-    // Skip when minimized
+    // Skip when minimized — but still end the ImGui frame so NewFrame/Render stay paired.
     int fbW = 0, fbH = 0;
     glfwGetFramebufferSize(s.window, &fbW, &fbH);
-    if (fbW == 0 || fbH == 0) return;
+    if (fbW == 0 || fbH == 0) {
+        s.imgui->endFrame();
+        return;
+    }
 
     if (s.resizeRequested) {
         s.context->waitIdle();
@@ -133,10 +136,12 @@ void Renderer::drawFrame(const ViewMatrix& viewIn) {
 
     if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
         s.resizeRequested = true;
+        s.imgui->endFrame();
         return;
     }
     if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) {
         spdlog::error("vkAcquireNextImageKHR failed: {}", static_cast<int>(acquireResult));
+        s.imgui->endFrame();
         return;
     }
     if (acquireResult == VK_SUBOPTIMAL_KHR) {
@@ -248,6 +253,7 @@ void Renderer::drawFrame(const ViewMatrix& viewIn) {
         vkCmdDrawIndexed(cmd, s.mesh->indexCount(), 1, 0, 0, 0);
     }
 
+    s.imgui->endFrame();
     s.imgui->recordDraw(cmd);
 
     vkCmdEndRendering(cmd);

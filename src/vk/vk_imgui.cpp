@@ -104,7 +104,9 @@ void VkImGui::beginFrame(float camX, float camY, float camZ) {
     ImGui::Text("Camera: (%.2f, %.2f, %.2f)", camX, camY, camZ);
     ImGui::Text("Hold RMB to look. WASD/E/Q move, Shift boosts.");
     ImGui::End();
+}
 
+void VkImGui::endFrame() {
     ImGui::Render();
 }
 
